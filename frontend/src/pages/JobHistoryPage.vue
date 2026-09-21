@@ -46,19 +46,47 @@
         </q-td>
       </template>
     </q-table>
+
+    <div class="text-h6 q-mt-lg q-mb-sm">重复开跑留痕（审计）</div>
+    <q-table
+      flat
+      bordered
+      row-key="id"
+      :rows="auditRows"
+      :columns="auditColumns"
+      :loading="loading"
+      hide-pagination
+      :pagination="{ rowsPerPage: 0 }"
+      no-data-label="暂无留痕：尚未发生重复开跑被拒绝"
+    >
+      <template #body-cell-job_id="props">
+        <q-td :props="props">
+          <q-btn
+            v-if="props.row.job_id"
+            dense
+            flat
+            color="primary"
+            :label="`#${props.row.job_id}`"
+            :to="`/jobs/${props.row.job_id}`"
+          />
+          <span v-else class="text-grey-6">—</span>
+        </q-td>
+      </template>
+    </q-table>
   </q-page>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
-import { listJobs } from '../api/client'
+import { listAuditEvents, listJobs } from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 const $q = useQuasar()
 const loading = ref(false)
 const rows = ref([])
+const auditRows = ref([])
 
 const columns = [
   { name: 'id', label: 'ID', field: 'id', align: 'left' },
@@ -76,6 +104,21 @@ const columns = [
   { name: 'actions', label: '操作', field: 'actions', align: 'left' },
 ]
 
+const auditColumns = [
+  { name: 'id', label: 'ID', field: 'id', align: 'left' },
+  {
+    name: 'created_at',
+    label: '时间',
+    field: 'created_at',
+    align: 'left',
+    format: (v) => (v ? new Date(v).toLocaleString() : ''),
+  },
+  { name: 'username', label: '尝试人', field: 'username', align: 'left' },
+  { name: 'sample_name', label: '样例', field: 'sample_name', align: 'left' },
+  { name: 'job_id', label: '当日已开跑作业', field: 'job_id', align: 'left' },
+  { name: 'detail', label: '留痕内容（与接口文案一致）', field: 'detail', align: 'left' },
+]
+
 function statusLabel(s) {
   return { pending: '排队中', running: '运行中', success: '成功', failed: '失败' }[s] || s
 }
@@ -87,7 +130,9 @@ function statusColor(s) {
 async function load() {
   loading.value = true
   try {
-    rows.value = await listJobs()
+    const [jobs, events] = await Promise.all([listJobs(), listAuditEvents()])
+    rows.value = jobs
+    auditRows.value = events
   } catch (e) {
     $q.notify({ type: 'negative', message: e.message || '加载失败' })
   } finally {

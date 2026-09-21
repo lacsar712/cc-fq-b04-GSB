@@ -62,4 +62,9 @@ export async function createJob(body) {
   return data
 }
 
+export async function listAuditEvents() {
+  const { data } = await api.get('/audit-events')
+  return data
+}
+
 export default api

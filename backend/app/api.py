@@ -3,9 +3,17 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.auth import authenticate_user, create_access_token, get_current_user, require_bioops
 from app.database import SessionLocal, get_db
-from app.models import Job, JobStage, Sample
+from app.models import AuditEvent, Job, JobStage, Sample
 from app.pipeline.runner import create_job_stages, run_pipeline_sync
+from app.policy import (
+    EVENT_DUPLICATE_RUN_REJECTED,
+    duplicate_reject_message,
+    find_same_day_job,
+    record_audit_event,
+    validate_custom_fastq,
+)
 from app.schemas import (
+    AuditEventOut,
     HealthOut,
     JobCreate,
     JobListItem,
@@ -69,10 +77,27 @@ def create_job(
         sample = db.query(Sample).filter(Sample.id == sample_id).first()
         if not sample:
             raise HTTPException(status_code=404, detail="样例不存在")
+        existing = find_same_day_job(db, sample.id)
+        if existing:
+            # 写死策略：同一样例同日仅允许开跑一次 —— 拒绝并留痕。
+            # 报错文案与页面提示、留痕记录为同一条（见 app/policy.py）。
+            message = duplicate_reject_message(sample.name, existing)
+            record_audit_event(
+                db,
+                event_type=EVENT_DUPLICATE_RUN_REJECTED,
+                username=user["username"],
+                sample_id=sample.id,
+                sample_name=sample.name,
+                job_id=existing.id,
+                detail=message,
+            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message)
         fastq_text = sample.fastq_content
         sample_name = sample.name
-    elif not fastq_text:
-        raise HTTPException(status_code=400, detail="请提供 sampleId 或 fastqText")
+    else:
+        error = validate_custom_fastq(fastq_text)
+        if error:
+            raise HTTPException(status_code=400, detail=error)
 
     job = Job(
         sample_id=sample.id if sample else None,
@@ -127,3 +152,9 @@ def get_job_stages(
         .order_by(JobStage.stage_order)
         .all()
     )
+
+
+@router.get("/audit-events", response_model=list[AuditEventOut])
+def list_audit_events(_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """留痕查询：所有登录用户（含审计员）可查看重复开跑被拒绝等事件。"""
+    return db.query(AuditEvent).order_by(AuditEvent.id.desc()).all()

@@ -74,6 +74,19 @@ class JobListItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AuditEventOut(BaseModel):
+    id: int
+    event_type: str
+    username: str
+    sample_id: int | None
+    sample_name: str
+    job_id: int | None
+    detail: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class HealthOut(BaseModel):
     status: str
     service: str

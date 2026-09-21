@@ -37,6 +37,21 @@ class Job(Base):
     sample: Mapped[Sample | None] = relationship("Sample")
 
 
+class AuditEvent(Base):
+    """留痕记录：如「同日同样例重复开跑被拒绝」等可追溯事件。"""
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    username: Mapped[str] = mapped_column(String(64), nullable=False)
+    sample_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sample_name: Mapped[str] = mapped_column(String(128), default="")
+    job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detail: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class JobStage(Base):
     __tablename__ = "job_stages"
 
