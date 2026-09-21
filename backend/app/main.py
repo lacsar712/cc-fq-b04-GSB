@@ -10,6 +10,12 @@ from app.database import Base, engine
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # 兼容旧库：create_all 不会给已存在的 jobs 表补列，幂等补齐（仅 Postgres 支持该语法）
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)"
+            )
     yield
 
 

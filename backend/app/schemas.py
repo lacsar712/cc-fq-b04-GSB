@@ -77,3 +77,18 @@ class JobListItem(BaseModel):
 class HealthOut(BaseModel):
     status: str
     service: str
+
+
+class AttemptOut(BaseModel):
+    id: int
+    username: str
+    role: str
+    action: str  # created / rejected_duplicate / rejected_forbidden
+    sample_id: int | None
+    sample_name: str
+    content_hash: str | None
+    job_id: int | None
+    detail: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

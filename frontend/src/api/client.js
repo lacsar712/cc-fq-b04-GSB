@@ -22,6 +22,10 @@ api.interceptors.response.use(
       err.message = detail
     } else if (Array.isArray(detail)) {
       err.message = detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
+    } else if (detail && typeof detail === 'object') {
+      // 结构化错误（如 409 同日重复开跑）：页面与接口展示同一句 message
+      err.message = detail.message || JSON.stringify(detail)
+      err.detail = detail
     }
     return Promise.reject(err)
   },
@@ -59,6 +63,11 @@ export async function getJobStages(id) {
 
 export async function createJob(body) {
   const { data } = await api.post('/jobs', body)
+  return data
+}
+
+export async function listAttempts() {
+  const { data } = await api.get('/attempts')
   return data
 }
 

@@ -60,9 +60,3 @@ def get_current_user(
         return {"username": username, "role": role}
     except JWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效令牌") from exc
-
-
-def require_bioops(user: dict = Depends(get_current_user)) -> dict:
-    if user["role"] != "bioops":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅运维账号可提交质控作业")
-    return user
